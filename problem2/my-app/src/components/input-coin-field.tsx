@@ -2,14 +2,14 @@ import React from 'react'
 import { WalletIcon } from '@heroicons/react/24/outline'
 import Select from './select'
 import { formatWithCommas, getUSDPrice } from '../utils'
-import { Token, InputTypes } from '../types'
+import { Token, SelectTypes } from '../types'
 
 interface InputFieldProps {
   name: 'pay' | 'receive'
   value?: string
   token?: Token
   loading?: boolean
-  onOpenTokenList: (e: InputTypes) => void
+  onOpenTokenList: (e: SelectTypes) => void
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
 }
 

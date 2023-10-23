@@ -1,6 +1,5 @@
 import { ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { Token } from './types'
 
 export const cn = (...inputs: ClassValue[]) => {
   return twMerge(clsx(inputs))
@@ -33,27 +32,25 @@ export const updatedTokenBalance = (symbol: string) => {
   }
 }
 
-export const calculateInputValues = (
-  payValue: string,
-  receiveValue: string,
-  payToken: Token | undefined,
-  receiveToken: Token | undefined
-) => {
-  if (payToken && receiveToken) {
-    // Calculate conversion rate of 2 tokens
-    const spendToPayConversionRate =
-      Number(receiveToken.price) / Number(payToken.price)
-    const reveiveToPayConversionRate =
-      Number(payToken.price) / Number(receiveToken.price)
+export const checkNumericValue = (value: string): RegExpMatchArray | null => {
+  const result = value.match(/^[0-9]*[.,]?[0-9]*$/)
+  return result
+}
 
-    const inputPayValue = Number(receiveValue) * spendToPayConversionRate
-    const inputReceiveValue = Number(payValue) * reveiveToPayConversionRate
-
-    return {
-      pay: inputPayValue.toFixed(2),
-      receive: inputReceiveValue.toFixed(2),
-    }
+export const calculateConversionRate = (
+  amountPayToken: string | undefined,
+  pricePayToken: string | undefined,
+  priceTokenReceive: string | undefined
+): string | undefined => {
+  if (!amountPayToken || !pricePayToken || !priceTokenReceive) {
+    // console.error('Invalid input. Please provide valid numeric values.')
+    return undefined
   }
 
-  return { pay: payValue, receive: receiveValue }
+  const conversionRate =
+    parseFloat(pricePayToken) / parseFloat(priceTokenReceive)
+
+  const amountReceive = parseFloat(amountPayToken) * conversionRate
+
+  return amountReceive.toFixed(3)
 }

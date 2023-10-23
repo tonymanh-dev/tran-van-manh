@@ -7,18 +7,14 @@ import Button from './button'
 import TokenList from './token-list'
 import useTokens from '../hooks/use-tokens'
 import InputField from './input-coin-field'
-import { Token, InputTypes } from '../types'
-import { calculateInputValues } from '../utils'
-
-interface InputProps {
-  pay: string
-  receive: string
-}
+import { Token, SelectTypes } from '../types'
+import { calculateConversionRate, checkNumericValue } from '../utils'
 
 const SwapForm = () => {
   const [isOpenTokenList, setIsOpenTokenList] = useState(false)
-  const [type, setType] = useState<InputTypes>()
-  const [input, setInput] = useState<InputProps>({ pay: '', receive: '' })
+  const [type, setType] = useState<SelectTypes>()
+  const [inputPay, setInputPay] = useState<string>('')
+  const [inputReceive, setInputReceive] = useState<string>('')
 
   const [payToken, setPayToken] = useState<Token>()
   const [receiveToken, setReceiveToken] = useState<Token>()
@@ -26,66 +22,77 @@ const SwapForm = () => {
 
   const { tokens, loading, error } = useTokens()
 
-  const handleOnChangeInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    // Validate the input using a regex pattern
-    if (!value.match(/^[0-9]*[.,]?[0-9]*$/)) {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    inputType: SelectTypes
+  ) => {
+    const { value } = e.target
+
+    if (!checkNumericValue(value)) {
+      toast.error('Invalid input. Please enter a valid numeric value.', {
+        duration: 2000,
+      })
       return
     }
 
-    setInput((prevInput) => {
-      // Create a new object to avoid mutating the previous state
-      const newInput = { ...prevInput }
-
-      if (name === 'pay') {
-        newInput.pay = value
-        const { receive } = calculateInputValues(
-          value,
-          newInput.receive,
-          payToken,
-          receiveToken
-        )
-        newInput.receive = receive
-      } else if (name === 'receive') {
-        newInput.receive = value
-        const { pay } = calculateInputValues(
-          newInput.pay,
-          value,
-          payToken,
-          receiveToken
-        )
-        newInput.pay = pay
-      }
-      return newInput
-    })
+    if (inputType === 'pay') {
+      setInputPay(value)
+      const conversion = calculateConversionRate(
+        value,
+        payToken?.price,
+        receiveToken?.price
+      )
+      setInputReceive(conversion ?? '')
+    } else if (inputType === 'receive') {
+      setInputReceive(value)
+      const conversion = calculateConversionRate(
+        value,
+        receiveToken?.price,
+        payToken?.price
+      )
+      setInputPay(conversion ?? '')
+    }
   }
 
-  const handleOpenTokenList = (type: 'pay' | 'receive' | null) => {
+  const handleOpenTokenList = (type: SelectTypes) => {
     setType(type)
     setIsOpenTokenList(true)
   }
 
-  // Handle the selection of a token. This function updates the "payToken" and "receiveToken"
-  // based on the selected token and the input type ("pay" or "to")
+  // Handle the selection of a token. This function updates state "payToken" and "receiveToken"
+  // based on the selected token and the input type ("pay" or "receive")
   const handleSelectToken = (token: Token) => {
     if (type === 'pay' && token?.symbol === receiveToken?.symbol) {
-      // Swap "payToken" and "receiveToken"
+      // Swap token
       setPayToken(token)
       setReceiveToken(payToken)
-
-      // It should be recalculate conversion rate
-      setInput({ pay: input.receive, receive: input.pay })
+      setInputPay(inputReceive)
+      setInputReceive(inputPay)
     } else if (type === 'pay') {
       setPayToken(token)
+      // Recalculate conversion
+      const conversion = calculateConversionRate(
+        inputPay,
+        token?.price,
+        receiveToken?.price
+      )
+      setInputReceive(conversion ?? '')
     } else if (type === 'receive' && token.symbol === payToken?.symbol) {
-      // Swap "receiveToken" and "payToken"
+      // Swap token
       setReceiveToken(token)
       setPayToken(receiveToken)
-
-      // It should be recalculate conversion rate
-      setInput({ pay: input.receive, receive: input.pay })
+      setInputPay(inputReceive)
+      setInputReceive(inputPay)
     } else if (type === 'receive') {
       setReceiveToken(token)
+      // Recalculate conversion
+      const conversion = calculateConversionRate(
+        inputReceive,
+        token?.price,
+        receiveToken?.price
+      )
+
+      setInputPay(conversion ?? '')
     }
     setIsOpenTokenList(false)
   }
@@ -94,7 +101,8 @@ const SwapForm = () => {
   const handleSwapInput = () => {
     setReceiveToken(payToken)
     setPayToken(receiveToken)
-    setInput({ pay: input.receive, receive: input.pay })
+    setInputPay(inputReceive)
+    setInputReceive(inputPay)
   }
 
   // Handle show status success after 2 sec to indicate for sending data to backend
@@ -111,7 +119,8 @@ const SwapForm = () => {
         </div>
       )
       setIsSwapping(false)
-      setInput({ pay: '', receive: '' })
+      setInputPay('')
+      setInputReceive('')
     }, 2000)
   }
 
@@ -136,12 +145,12 @@ const SwapForm = () => {
               <div className="pt-6">
                 <div>
                   <InputField
-                    value={input.pay}
+                    value={inputPay}
                     name="pay"
                     token={payToken}
                     loading={loading}
-                    onChange={handleOnChangeInput}
-                    onOpenTokenList={(e) => handleOpenTokenList(e)}
+                    onChange={(e) => handleInputChange(e, 'pay')}
+                    onOpenTokenList={(type) => handleOpenTokenList(type)}
                   />
                   <div className="w-fit mx-auto py-2">
                     <button
@@ -152,19 +161,19 @@ const SwapForm = () => {
                     </button>
                   </div>
                   <InputField
-                    value={input.receive}
+                    value={inputReceive}
                     name="receive"
                     token={receiveToken}
                     loading={loading}
-                    onChange={handleOnChangeInput}
-                    onOpenTokenList={(e) => handleOpenTokenList(e)}
+                    onChange={(e) => handleInputChange(e, 'receive')}
+                    onOpenTokenList={(type) => handleOpenTokenList(type)}
                   />
                 </div>
               </div>
             )}
             <div className="pt-10">
               <Button
-                disabled={input.pay && input.receive ? false : true}
+                disabled={inputPay && inputReceive ? false : true}
                 isLoading={isSwapping}
                 className="w-full h-14 rounded-xl hover:opacity-75"
                 onClick={handleSwap}
@@ -173,11 +182,11 @@ const SwapForm = () => {
               </Button>
             </div>
             <Footer
-              showValue={input.pay && input.receive ? true : false}
+              showValue={inputPay && inputReceive ? true : false}
               recalculate={isOpenTokenList}
               receiveToken={{
                 symbol: receiveToken?.symbol,
-                value: input?.receive,
+                value: inputReceive,
               }}
             />
           </div>

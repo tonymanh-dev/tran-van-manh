@@ -1,4 +1,4 @@
-export type InputTypes = 'pay' | 'receive' | null
+export type SelectTypes = 'pay' | 'receive' | null
 
 export interface Token {
   uuid: string
